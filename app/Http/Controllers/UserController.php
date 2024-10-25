@@ -4,47 +4,53 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UserCreateRequest;
 use App\Http\Requests\UserUpdateRequest;
-use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\Contracts\UserServiceInterface;
 use Illuminate\Support\Facades\Auth;
 
 /**
  * Class UserController
  *
  * @package App\Http\Controllers
- * @author Vinícius Siqueira
- * @link https://github.com/ViniciusSCS
- * @date 2024-08-23 21:48:54
- * @copyright UniEVANGÉLICA
  */
 class UserController extends Controller
 {
+    private UserServiceInterface $userService;
+
+    /**
+     * UserController constructor.
+     * 
+     * @param UserServiceInterface $userService
+     */
+    public function __construct(UserServiceInterface $userService)
+    {
+        $this->userService = $userService;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $user = User::select('id', 'name', 'email', 'created_at')
-            ->paginate('10');
+        $users = $this->userService->getAllUsers();
 
         return [
             'status' => 200,
-            'menssagem' => 'Usuários encontrados!!',
-            'user' => $user
+            'message' => 'Usuários encontrados!',
+            'users' => $users
         ];
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Show the authenticated user.
      */
     public function me()
     {
-        $user = Auth::user();
+        $user = $this->userService->getAuthenticatedUser();
 
         return [
             'status' => 200,
             'message' => 'Usuário logado!',
-            "usuario" => $user
+            'user' => $user
         ];
     }
 
@@ -53,17 +59,11 @@ class UserController extends Controller
      */
     public function store(UserCreateRequest $request)
     {
-        $data = $request->all();
-
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-        ]);
+        $user = $this->userService->createUser($request->validated());
 
         return [
             'status' => 200,
-            'menssagem' => 'Usuário cadastrado com sucesso!!',
+            'message' => 'Usuário cadastrado com sucesso!',
             'user' => $user
         ];
     }
@@ -73,29 +73,21 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        $user = User::find($id);
+        $user = $this->userService->getUserById($id);
 
-        if(!$user){
+        if (!$user) {
             return [
                 'status' => 404,
-                'message' => 'Usuário não encontrado! Que triste!',
-                'user' => $user
+                'message' => 'Usuário não encontrado!',
+                'user' => null
             ];
         }
 
         return [
             'status' => 200,
-            'message' => 'Usuário encontrado com sucesso!!',
+            'message' => 'Usuário encontrado com sucesso!',
             'user' => $user
         ];
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
     }
 
     /**
@@ -103,29 +95,20 @@ class UserController extends Controller
      */
     public function update(UserUpdateRequest $request, string $id)
     {
-        $data = $request->all();
+        $updatedUser = $this->userService->updateUser($id, $request->validated());
 
-        $user = User::find($id);
-
-        if(!$user){
+        if (!$updatedUser) {
             return [
                 'status' => 404,
-                'message' => 'Usuário não encontrado! Que triste!',
-                'user' => $user
+                'message' => 'Usuário não encontrado!',
+                'user' => null
             ];
         }
 
-        // Verifica se a senha está presente nos dados da requisição
-        if (isset($data['password'])) {
-            $data['password'] = bcrypt($data['password']);  // Criptografa a senha antes de salvar
-        }
-
-        $user->update($data);
-
         return [
             'status' => 200,
-            'message' => 'Usuário atualizado com sucesso!!',
-            'user' => $user
+            'message' => 'Usuário atualizado com sucesso!',
+            'user' => $updatedUser
         ];
     }
 
@@ -134,22 +117,18 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        $user = User::find($id);
+        $deleted = $this->userService->deleteUser($id);
 
-        if(!$user){
+        if (!$deleted) {
             return [
                 'status' => 404,
-                'message' => 'Usuário não encontrado! Que triste!',
-                'user' => $user
+                'message' => 'Usuário não encontrado!'
             ];
         }
 
-        $user->delete($id);
-
         return [
             'status' => 200,
-            'message' => 'Usuário deletado com sucesso!!'
+            'message' => 'Usuário deletado com sucesso!'
         ];
-
     }
 }
